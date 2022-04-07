@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using University.Models;
+using University.Repositories;
 
 namespace University
 {
@@ -9,8 +11,10 @@ namespace University
 
         static void Main(string[] args)
         {
-            IUniversityRepository studentRepository = new UniversityRawSqlRepository(_connectionString);
-            IUniversityRepository groupRepository = new UniversityRawSqlRepository(_connectionString);
+            IStudentRepository studentRepository = new StudentRawSqlRepository(_connectionString);
+            IGroupRepository groupRepository = new GroupRawSqlRepository(_connectionString);
+            IStudentInGroupRepository studentInGroupRepository = new StudentInGroupRawSqlRepository(_connectionString);
+
 
             Console.WriteLine("Доступные команды:");
             Console.WriteLine("get-all-students - показать список студентов");
@@ -24,14 +28,14 @@ namespace University
             while (true)
             {
                 string command = Console.ReadLine();
-                bool isHave = true;
+                bool isNotHave = true;
 
                 if (command == "get-all-students")
                 {
-                    List<Students> students = studentRepository.GetAllStudents();
-                    if (students != null)
+                    List<Student> students = studentRepository.GetAllStudents();
+                    if (!(students.Count == 0))
                     {
-                        foreach (Students student in students)
+                        foreach (Student student in students)
                         {
                             Console.WriteLine($"Id: {student.Id}, Name: {student.Name}, Age: {student.Age}");
                         }
@@ -45,7 +49,7 @@ namespace University
                 else if (command == "get-all-groups")
                 {
                     List<Group> groups = groupRepository.GetAllGroups();
-                    if (groups != null)
+                    if (!(groups.Count == 0))
                     {
                         foreach (Group group in groups)
                         {
@@ -60,14 +64,19 @@ namespace University
                 else if (command == "get-students-in-group")
                 {
                     Console.WriteLine("Введите id группы");
-                    int id = Convert.ToInt32(Console.ReadLine());
-                    List<StudentsInGroups> StudentsInGroup = studentRepository.GetStudentsInGroup(id);
-                    if (StudentsInGroup != null)
+                    if (!Int32.TryParse(Console.ReadLine(), out int id))
                     {
-                        foreach (StudentsInGroups studentsInGroup in StudentsInGroup)
+                        Console.WriteLine("Вводите id цифрами");
+                        Console.WriteLine();
+                        continue;
+                    }
+                    List<StudentInGroup> studentInGroups = studentInGroupRepository.GetStudentsInGroup(id);
+                    if (!(studentInGroups.Count == 0))
+                    {
+                        foreach (StudentInGroup studentInGroup in studentInGroups)
                         {
-                            List<Students> students = studentRepository.GetStudentById(studentsInGroup.IdOfStudent);
-                            foreach (Students student in students)
+                            List<Student> students = studentRepository.GetStudentById(studentInGroup.IdOfStudent);
+                            foreach (Student student in students)
                             {
                                 Console.WriteLine($"Id: {student.Id}, Name: {student.Name}, Age: {student.Age}");
                             }
@@ -82,20 +91,30 @@ namespace University
                 {
                     Console.WriteLine("Введите имя студента");
                     string name = Console.ReadLine();
-                    Console.WriteLine("Введите возраст студента");
-                    int age = Convert.ToInt32(Console.ReadLine());
-
-                    List<Students> students = studentRepository.GetAllStudents();
-                    foreach (Students student in students)
+                    if (String.IsNullOrEmpty(name) || name.Contains(' '))
                     {
-                        if ((student.Name == name) && (student.Age == age))
-                        {
-                            isHave = false;
-                        }
+                        Console.WriteLine("Имя студента не должно быть пустым или иметь пробелы");
+                        Console.WriteLine();
+                        continue;
                     }
-                    if (isHave)
+                    Console.WriteLine("Введите возраст студента");
+                    if (!Int32.TryParse(Console.ReadLine(), out int age))
                     {
-                        studentRepository.AddStudents(new Students
+                        Console.WriteLine("Вводите возраст цифрами");
+                        Console.WriteLine();
+                        continue;
+                    }
+
+                    List<Student> student = studentRepository.GetStudentByNameAndAge(name, age);
+                   
+                    if (student.Count == 0)
+                    {
+                        isNotHave = false;
+                    }
+                    
+                    if (isNotHave)
+                    {
+                        studentRepository.AddStudents(new Student
                         {
                             Name = name,
                             Age = age
@@ -111,17 +130,23 @@ namespace University
                 {
                     Console.WriteLine("Введите название группы");
                     string name = Console.ReadLine();
-                    List<Group> groups = groupRepository.GetAllGroups();
+                    if (String.IsNullOrEmpty(name) || name.Contains(' '))
+                    {
+                        Console.WriteLine("Название группы не должно быть пустым или иметь");
+                        Console.WriteLine();
+                        continue;
+                    }
+                    List<Group> groups = groupRepository.GetGroupByName(name);
                     foreach (Group group in groups)
                     {
                         if (group.Name == name)
                         {
-                            isHave = false;
+                            isNotHave = false;
                         }
                     }
-                    if (isHave)
+                    if (isNotHave)
                     {
-                        groupRepository.AddGroups(new Group
+                        groupRepository.AddGroup(new Group
                         {
                             Name = name
                         });
@@ -135,29 +160,34 @@ namespace University
                 else if (command == "add-student-in-group")
                 {
                     Console.WriteLine("Введите id группы");
-                    int idOfGroup = Convert.ToInt32(Console.ReadLine());
-                    Console.WriteLine("Введите id студента");
-                    int idOfStudent = Convert.ToInt32(Console.ReadLine());
-                    List<StudentsInGroups> studentsInGroups = groupRepository.GetStudentsInGroups();
-                    foreach (StudentsInGroups studentsInGroup in studentsInGroups)
+                    if (!Int32.TryParse(Console.ReadLine(), out int idOfGroup))
                     {
-                        if ((studentsInGroup.IdOfGroup == idOfGroup) && (studentsInGroup.IdOfStudent == idOfStudent))
-                        {
-                            isHave = false;
-                        }
+                        Console.WriteLine("Вводите id группы цифрами");
+                        Console.WriteLine();
+                        continue;
                     }
-                    if (isHave)
+                    Console.WriteLine("Введите id студента");
+                    if (!Int32.TryParse(Console.ReadLine(), out int idOfStudent))
                     {
-                        studentRepository.AddStudentInGroup(new StudentsInGroups
-                        {
-                            IdOfGroup = idOfGroup,
-                            IdOfStudent = idOfStudent,
-                        });
+                        Console.WriteLine("Вводите id студента цифрами");
+                        Console.WriteLine();
+                        continue;
+                    }
+                    List<StudentInGroup> studentInGroup = studentInGroupRepository.GetStudentInGroup(idOfStudent, idOfGroup);
+                    
+                    if (!(studentInGroup.Count == 0))
+                    {
+                        isNotHave = false;
+                    }
+                    
+                    if (isNotHave)
+                    {
+                        studentInGroupRepository.AddStudentInGroup(idOfGroup, idOfStudent);
                         Console.WriteLine("Успешно добавлено");
                     }
                     else
                     {
-                        Console.WriteLine("Такой студент в группе уже есть");
+                        Console.WriteLine("Такой студент в группе уже состоит в этой группе");
                     }
                 }
                 else if (command == "exit")
@@ -168,6 +198,7 @@ namespace University
                 {
                     Console.WriteLine("Команда не найдена");
                 }
+                Console.WriteLine();
             }
         }
     }
